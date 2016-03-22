@@ -28,11 +28,12 @@ from zope.index.text.lexicon import StopWordRemover
 from zope.index.text.okapiindex import OkapiIndex
 from zope.index.text.queryparser import QueryParser
 
+
 class TextIndex(Persistent):
 
     implements(IInjection, IIndexSearch, IStatistics)
 
-    def __init__(self, lexicon=None, index=None):
+    def __init__(self, lexicon=None, index=None, queryparser=None):
         """Provisional constructor.
 
         This creates the lexicon and index if not passed in.
@@ -43,8 +44,11 @@ class TextIndex(Persistent):
             lexicon = Lexicon(Splitter(), CaseNormalizer(), StopWordRemover())
         if index is None:
             index = OkapiIndex(lexicon)
+        if queryparser is None:
+            queryparser = QueryParser
         self.lexicon = _explicit_lexicon and lexicon or index.lexicon
         self.index = index
+        self.queryparser = queryparser
 
     def index_doc(self, docid, text):
         self.index.index_doc(docid, text)
@@ -64,12 +68,12 @@ class TextIndex(Persistent):
         return self.index.wordCount()
 
     def apply(self, querytext, start=0, count=None):
-        parser = QueryParser(self.lexicon)
+        parser = self.queryparser(self.lexicon)
         tree = parser.parseQuery(querytext)
         results = tree.executeQuery(self.index)
         if results:
             qw = self.index.query_weight(tree.terms())
-            
+
             # Hack to avoid ZeroDivisionError
             if qw == 0:
                 qw = 1.0
